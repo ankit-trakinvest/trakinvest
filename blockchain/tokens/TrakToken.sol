@@ -62,6 +62,7 @@ contract ERC20 {
 
 }
 
+
 /*  ERC 20 token */
 contract StandardToken is ERC20,SafeMath {
 
@@ -178,6 +179,7 @@ contract StandardToken is ERC20,SafeMath {
 
 }
 
+
 contract TrakToken is StandardToken {
     // FIELDS
     string constant public  name = "TrakInvest Token" ;
@@ -271,13 +273,13 @@ contract TrakToken is StandardToken {
     }
 
     /// @param newAddress Address of new owner.
-    function changeFundsWallet(address newAddress) public onlyOwner returns (bool)
+    function changeTokensWallet(address newAddress) public onlyOwner returns (bool)
     {
         require(newAddress != address(0));
         tokensOwner = newAddress;
     }
 
-    function finalize() external  onlyOwner {
+    function finalize() public  onlyOwner {
         require(fundraising != false);
         // Switch to Operational state. This is the only place this can happen.
         fundraising = false;
@@ -289,4 +291,3 @@ contract TrakToken is StandardToken {
     }
 
 }
-

@@ -37,12 +37,14 @@ contract SafeMath {
 
 }
 
-// The token contract does this and that...
+// The abstract token contract
 
 contract TrakToken {
     function TrakToken () public {}
     function transfer (address ,uint) public pure { }
     function burn (uint256) public pure { }
+    function finalize() public pure { }
+    function changeTokensWallet (address) public pure { }
 }
 
 contract CrowdSale is SafeMath {
@@ -197,8 +199,6 @@ contract CrowdSale is SafeMath {
             if (tokenAmount > trancheMaxTokensLeft) {
                 // handle round off error by adding .1 token
                 tokensDistributed =  safeAdd(tokensDistributed,safeAdd(trancheMaxTokensLeft,safeDiv(1,10)));
-                //trakToken.transfer(beneficiary,safeAdd(trancheMaxTokensLeft,safeDiv(1,10)));
-
                 //find remaining tokens by getCurrentTokenPrice() function and sell them from remaining ethers left
                 var (nextCurrentRate,/* nextTrancheMaxTokensLeft */) = getCurrentTokenPrice();
                 //@TODO - If you want to multiply a value by a fraction (eg, 2/3), first multiply by the numerator, then divide by the denominator:
@@ -261,14 +261,14 @@ contract CrowdSale is SafeMath {
 
 
     // after ICO only owner can call this
-    function burnRemainingToken(uint256 _value) external view onlyOwner isIcoFinished {
+    function burnRemainingToken(uint256 _value) external  onlyOwner isIcoFinished {
         //@TODO - check balance of address if no value passed
         require(_value > 0);
         trakToken.burn(_value);
     }
 
     // after ICO only owner can call this
-    function withdrawRemainingToken(uint256 _value,address trakTokenAdmin) view external onlyOwner isIcoFinished {
+    function withdrawRemainingToken(uint256 _value,address trakTokenAdmin)  external onlyOwner isIcoFinished {
         //@TODO - check balance of address if no value passed
         require(trakTokenAdmin != 0x0);
         require(_value > 0);
@@ -276,13 +276,28 @@ contract CrowdSale is SafeMath {
     }
 
 
-    function removeContract ()  public onlyOwner atEndOfLifecycle {
+    // after ICO only owner can call this
+
+    function finalize() external  onlyOwner isIcoFinished  {
+        //@TODO - check balance of address if no value passed
+        trakToken.finalize();
+    }
+
+    // after ICO only owner can call this
+    // isIcoFinished
+    function changeTokensWallet(address newAddress) external  onlyOwner  {
+        require(newAddress != address(0));
+        trakToken.changeTokensWallet(newAddress);
+    }
+
+
+    function removeContract ()  external onlyOwner atEndOfLifecycle {
         // msg.sender will receive all the ethers if this contract has ethers
         selfdestruct(msg.sender);
     }
 
     /// @param newAddress Address of new owner.
-    function changeFundsWallet(address newAddress) public onlyOwner returns (bool)
+    function changeFundsWallet(address newAddress) external onlyOwner returns (bool)
     {
         require(newAddress != address(0));
         contractOwner = newAddress;
