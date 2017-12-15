@@ -36,7 +36,6 @@ contract SafeMath {
     }
 
 }
-
 // The abstract token contract
 
 contract TrakToken {
@@ -58,9 +57,11 @@ contract CrowdSale is SafeMath {
     TrakToken public trakToken;
     // who created smart contract
     address public creator;
-    mapping (address => uint256) public contributions; //keeps track of ether contributions in Wei of each contributor address
     // Address which will receive raised funds
     address public contractOwner;
+    // adreess vs state mapping (1 for exists , zero default);
+    mapping (address => bool) public whitelistedContributors;
+
     uint256 public fundingStartBlock; // Dec 15 - Dec 25
     uint256 public firstChangeBlock;  // December 25 - January 5
     uint256 public secondChangeBlock; // January 5 -January 15
@@ -72,20 +73,20 @@ contract CrowdSale is SafeMath {
     // We need to keep track of how much ether (in units of Wei) has been contributed
     uint256 public totalRaisedInWei;
     // maximum ether we will accept from one user
-    uint256 constant public maxPriceInWeiFromUser = 2000 ether;
-    uint256 constant public minPriceInWeiForPre = 50 ether;
-    uint256 constant public minPriceInWeiForIco = 2 ether;
+    uint256 constant public maxPriceInWeiFromUser = 1500 ether;
+    uint256 constant public minPriceInWeiForPre = 1 ether;
+    uint256 constant public minPriceInWeiForIco = 0.5 ether;
     uint8 constant public  decimals = 18;
     // Number of tokens distributed to investors
     uint public tokensDistributed = 0;
     // tokens per tranche
     uint constant public tokensPerTranche = 11000000 * (uint256(10) ** decimals);
-    uint256 public constant privateExchangeRate = 1170; // 23.8%
-    uint256 public constant firstExchangeRate   = 1062; // 15.25%
-    uint256 public constant secondExchangeRate  = 983;  //  8.42%
-    uint256 public constant thirdExchangeRate   = 941;  //  4.31%
-    uint256 public constant fourthExchangeRate  = 921;  //  2.25%
-    uint256 public constant fifthExchangeRate   = 910;  // 1.09%
+    uint256 public constant privateExchangeRate = 1420; // 23.8%
+    uint256 public constant firstExchangeRate   = 1289; // 15.25%
+    uint256 public constant secondExchangeRate  = 1193;  //  8.42%
+    uint256 public constant thirdExchangeRate   = 1142;  //  4.31%
+    uint256 public constant fourthExchangeRate  = 1118;  //  2.25%
+    uint256 public constant fifthExchangeRate   = 1105;  // 1.09%
 
     /// modifiers
     modifier onlyOwner() {
@@ -115,7 +116,7 @@ contract CrowdSale is SafeMath {
     }
 
     modifier isIcoFinished() {
-        require(totalRaisedInWei >= fundingMaximumTargetInWei || (block.number > fundingEndBlock));
+        require(totalRaisedInWei >= fundingMaximumTargetInWei || (block.number > fundingEndBlock) || state == State.Successful );
         _;
     }
 
@@ -131,7 +132,7 @@ contract CrowdSale is SafeMath {
 
     // wait 100 block after final contract state before allowing contract destruction
     modifier atEndOfLifecycle() {
-        require(totalRaisedInWei >= fundingMaximumTargetInWei || (block.number > fundingEndBlock + 100));
+        require(totalRaisedInWei >= fundingMaximumTargetInWei || (block.number > fundingEndBlock + 40000));
         _;
     }
 
@@ -173,9 +174,11 @@ contract CrowdSale is SafeMath {
     }
 
 
-    function buyTokens(address beneficiary)  isIcoOpen isMinimumPrice inState(State.Fundraising) public  payable  {
-        uint256 tokenAmount;
+    function buyTokens(address beneficiary) inState(State.Fundraising) isIcoOpen isMinimumPrice  public  payable  {
         require(beneficiary != 0x0);
+        // state 1 is set for
+        require(whitelistedContributors[beneficiary] == true );
+        uint256 tokenAmount;
         uint256 checkedReceivedWei = safeAdd(totalRaisedInWei, msg.value);
         // Check that this transaction wouldn't exceed the ETH max cap
 
@@ -195,23 +198,26 @@ contract CrowdSale is SafeMath {
             var (currentRate,trancheMaxTokensLeft) = getCurrentTokenPrice();
             // Calculate how many tokens (in units of Wei) should be awarded on this transaction
             tokenAmount = safeMult(msg.value, currentRate);
-
             if (tokenAmount > trancheMaxTokensLeft) {
                 // handle round off error by adding .1 token
                 tokensDistributed =  safeAdd(tokensDistributed,safeAdd(trancheMaxTokensLeft,safeDiv(1,10)));
                 //find remaining tokens by getCurrentTokenPrice() function and sell them from remaining ethers left
-                var (nextCurrentRate,/* nextTrancheMaxTokensLeft */) = getCurrentTokenPrice();
-                //@TODO - If you want to multiply a value by a fraction (eg, 2/3), first multiply by the numerator, then divide by the denominator:
-                //value = (value * 2) / 3;
-                uint256 nextTokenAmount = safeMult(safeSubtract(msg.value,safeMult(trancheMaxTokensLeft,safeDiv(1,currentRate))),nextCurrentRate);
-                tokensDistributed =  safeAdd(tokensDistributed,nextTokenAmount);
-                //uint256 totatalTokens = safeAdd(nextTokenAmount,safeAdd(trancheMaxTokensLeft,safeDiv(1,10)));
-                tokenAmount = safeAdd(nextTokenAmount,safeAdd(trancheMaxTokensLeft,safeDiv(1,10)));
+                var (nextCurrentRate,nextTrancheMaxTokensLeft) = getCurrentTokenPrice();
+
+                if (nextTrancheMaxTokensLeft <= 0) {
+                    tokenAmount = safeAdd(trancheMaxTokensLeft,safeDiv(1,10));
+                    state =  State.Successful;
+                    // Send change extra ether to user.
+                    beneficiary.transfer(safeDiv(safeSubtract(tokenAmount,trancheMaxTokensLeft),currentRate));
+                } else {
+                    uint256 nextTokenAmount = safeMult(safeSubtract(msg.value,safeMult(trancheMaxTokensLeft,safeDiv(1,currentRate))),nextCurrentRate);
+                    tokensDistributed =  safeAdd(tokensDistributed,nextTokenAmount);
+                    tokenAmount = safeAdd(nextTokenAmount,safeAdd(trancheMaxTokensLeft,safeDiv(1,10)));
+                }
             }
             else {
                 tokensDistributed =  safeAdd(tokensDistributed,tokenAmount);
             }
-            contributions[beneficiary] =  safeAdd(contributions[beneficiary], (msg.value));
         }
 
         trakToken.transfer(beneficiary,tokenAmount);
@@ -226,25 +232,39 @@ contract CrowdSale is SafeMath {
     /// @dev Returns the current token rate , minimum ether needed and maximum tokens left in currenttranche
     function getCurrentTokenPrice() private constant returns (uint256 currentRate, uint256 maximumTokensLeft) {
 
-        if (tokensDistributed <= safeMult(1,tokensPerTranche) && (block.number < firstChangeBlock)) {
+        if (tokensDistributed < safeMult(1,tokensPerTranche) && (block.number < firstChangeBlock)) {
             //  return ( privateExchangeRate, minPriceInWeiForPre, safeSubtract(tokensPerTranche,tokensDistributed) );
             return ( privateExchangeRate, safeSubtract(tokensPerTranche,tokensDistributed) );
         }
-        else if (tokensDistributed <= safeMult(2,tokensPerTranche) && (block.number < secondChangeBlock)) {
+        else if (tokensDistributed < safeMult(2,tokensPerTranche) && (block.number < secondChangeBlock)) {
             return ( firstExchangeRate, safeSubtract(safeMult(2,tokensPerTranche),tokensDistributed) );
         }
-        else if (tokensDistributed <= safeMult(3,tokensPerTranche) && (block.number < thirdChangeBlock)) {
+        else if (tokensDistributed < safeMult(3,tokensPerTranche) && (block.number < thirdChangeBlock)) {
             return ( secondExchangeRate, safeSubtract(safeMult(3,tokensPerTranche),tokensDistributed) );
         }
-        else if (tokensDistributed <= safeMult(4,tokensPerTranche) && (block.number < fundingEndBlock)) {
+        else if (tokensDistributed < safeMult(4,tokensPerTranche) && (block.number < fundingEndBlock)) {
             return  (thirdExchangeRate,safeSubtract(safeMult(4,tokensPerTranche),tokensDistributed)  );
         }
-        else if (tokensDistributed <= safeMult(5,tokensPerTranche) && (block.number < fundingEndBlock)) {
+        else if (tokensDistributed < safeMult(5,tokensPerTranche) && (block.number < fundingEndBlock)) {
             return  (fourthExchangeRate,safeSubtract(safeMult(5,tokensPerTranche),tokensDistributed)  );
         }
         else if (tokensDistributed <= safeMult(6,tokensPerTranche)) {
             return  (fifthExchangeRate,safeSubtract(safeMult(6,tokensPerTranche),tokensDistributed)  );
         }
+    }
+
+
+    function authorizeKyc(address[] addrs) external onlyOwner returns (bool success) {
+
+        //@TODO  maximum batch size for uploading
+        // @TODO amount of gas for a block of code - and will fail if that is exceeded
+        uint arrayLength = addrs.length;
+
+        for (uint x = 0; x < arrayLength; x++) {
+            whitelistedContributors[addrs[x]] = true;
+        }
+
+        return true;
     }
 
 
@@ -277,14 +297,12 @@ contract CrowdSale is SafeMath {
 
 
     // after ICO only owner can call this
-
     function finalize() external  onlyOwner isIcoFinished  {
-        //@TODO - check balance of address if no value passed
+        state =  State.Closed;
         trakToken.finalize();
     }
 
     // after ICO only owner can call this
-    // isIcoFinished
     function changeTokensWallet(address newAddress) external  onlyOwner  {
         require(newAddress != address(0));
         trakToken.changeTokensWallet(newAddress);
