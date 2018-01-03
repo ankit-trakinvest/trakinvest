@@ -81,12 +81,12 @@ contract CrowdSale is SafeMath {
     uint public tokensDistributed = 0;
     // tokens per tranche
     uint constant public tokensPerTranche = 11000000 * (uint256(10) ** decimals);
-    uint256 public constant privateExchangeRate = 1420; // 23.8%
-    uint256 public constant firstExchangeRate   = 1289; // 15.25%
-    uint256 public constant secondExchangeRate  = 1193;  //  8.42%
-    uint256 public constant thirdExchangeRate   = 1142;  //  4.31%
-    uint256 public constant fourthExchangeRate  = 1118;  //  2.25%
-    uint256 public constant fifthExchangeRate   = 1105;  // 1.09%
+    uint256 public privateExchangeRate = 1420; // 23.8%
+    uint256 public firstExchangeRate   = 1289; // 15.25%
+    uint256 public secondExchangeRate  = 1193;  //  8.42%
+    uint256 public thirdExchangeRate   = 1142;  //  4.31%
+    uint256 public fourthExchangeRate  = 1118;  //  2.25%
+    uint256 public fifthExchangeRate   = 1105;  // 1.09%
 
     /// modifiers
     modifier onlyOwner() {
@@ -334,4 +334,41 @@ contract CrowdSale is SafeMath {
         // Move the contract out of the Paused state
         state =  State.Fundraising;
     }
+
+    function updateFirstChangeBlock(uint256 newFirstChangeBlock)  external onlyOwner {
+        firstChangeBlock = newFirstChangeBlock;
+    }
+
+    function updateSecondChangeBlock(uint256 newSecondChangeBlock)  external onlyOwner {
+        secondChangeBlock = newSecondChangeBlock;
+    }  
+
+    function updateThirdChangeBlock(uint256 newThirdChangeBlock)  external onlyOwner {
+        thirdChangeBlock = newThirdChangeBlock;
+    }      
+
+    function updatePrivateExhangeRate(uint256 newPrivateExchangeRate)  external onlyOwner {
+        privateExchangeRate = newPrivateExchangeRate;
+    } 
+
+    function updateFirstExhangeRate(uint256 newFirstExchangeRate)  external onlyOwner {
+        firstExchangeRate = newFirstExchangeRate;
+    }    
+
+    function updateSecondExhangeRate(uint256 newSecondExchangeRate)  external onlyOwner {
+        secondExchangeRate = newSecondExchangeRate;
+    }
+
+    function updateThirdExhangeRate(uint256 newThirdExchangeRate)  external onlyOwner {
+        thirdExchangeRate = newThirdExchangeRate;
+    }      
+
+    function updateFourthExhangeRate(uint256 newFourthExchangeRate)  external onlyOwner {
+        fourthExchangeRate = newFourthExchangeRate;
+    }    
+
+    function updateFifthExhangeRate(uint256 newFifthExchangeRate)  external onlyOwner {
+        fifthExchangeRate = newFifthExchangeRate;
+    }    
+    
 }
