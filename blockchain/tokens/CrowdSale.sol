@@ -74,8 +74,8 @@ contract CrowdSale is SafeMath {
     uint256 public totalRaisedInWei;
     // maximum ether we will accept from one user
     uint256 constant public maxPriceInWeiFromUser = 1500 ether;
-    uint256 constant public minPriceInWeiForPre = 1 ether;
-    uint256 constant public minPriceInWeiForIco = 0.5 ether;
+    uint256 public minPriceInWeiForPre = 1 ether;
+    uint256 public minPriceInWeiForIco = 0.5 ether;
     uint8 constant public  decimals = 18;
     // Number of tokens distributed to investors
     uint public tokensDistributed = 0;
@@ -371,4 +371,11 @@ contract CrowdSale is SafeMath {
         fifthExchangeRate = newFifthExchangeRate;
     }    
     
+    function updateMinInvestmentForPreIco(uint256 newMinPriceInWeiForPre)  external onlyOwner {
+        minPriceInWeiForPre = newMinPriceInWeiForPre;
+    }
+    function updateMinInvestmentForIco(uint256 newMinPriceInWeiForIco)  external onlyOwner {
+        minPriceInWeiForIco = newMinPriceInWeiForIco;
+    }
+
 }
